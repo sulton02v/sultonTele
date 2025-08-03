@@ -1,2 +1,0 @@
-# sultonTele
-bot tele
